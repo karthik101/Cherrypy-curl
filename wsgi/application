@@ -1,0 +1,71 @@
+#!/usr/bin/env python
+import os
+
+# if we are running at openshift and not locally, initialize openshift
+#python virtualenv
+if __name__ != "__main__":
+    virtenv = os.environ['OPENSHIFT_PYTHON_DIR'] + '/virtenv/'
+    virtualenv = os.path.join(virtenv, 'bin/activate_this.py')
+    try:
+        execfile(virtualenv, dict(__file__=virtualenv))
+    except IOError:
+        pass
+#
+# IMPORTANT: Put any additional includes below this line.  If placed above this
+# line, it's possible required libraries won't be in your searchable path
+#
+
+import cherrypy
+import subprocess
+import time
+#global result
+
+class Test(object):
+    @cherrypy.expose
+    def index(self,  website=None):
+        time.sleep(1)
+        if cherrypy.request.method == 'POST' :
+            self.r = subprocess.check_output(['curl','-s', '-w', 'time_total = %{time_total}\n' 'http_code = %{http_code}\n' 'http_connect = %{http_connect}\n' 'time_namelookup = %{time_namelookup}\n' 'time_connect = %{time_connect}\n' 'time_appconnect = %{time_appconnect}\n' 'time_pretransfer = %{time_pretransfer}\n' 'time_redirect = %{time_redirect}\n' 'time_starttransfer = %{time_starttransfer}\n' 'size_download = %{size_download}\n' 'size_upload = %{size_upload}\n' 'size_header = %{size_header}\n' 'size_request = %{size_request}\n' 'speed_download = %{speed_download}\n' 'speed_upload = %{speed_upload}\n', website, '-o', '/dev/null'])
+
+        else :
+             raise cherrypy.HTTPRedirect('/')
+             raise cherrypy.InternalRedirect('/howdy/')
+        return ('\nMetrics For %s\n\n' %(website), "%s\n" %(self.r))
+    index.exposed = True
+
+class Howdy(object):
+    @cherrypy.expose
+    def index(self):
+        return ("%s\n" %(self.r))
+    index.exposed = True
+class Hello(object):
+    test = Test()
+    howdy = Howdy()
+    @cherrypy.expose
+    def index(self):
+        return "Hello Karthik"
+    index.exposed = True
+    def ret(self=None):
+        return "Auf Wiedersehen!"
+    index.exposed = True
+
+#we can also mount request handler objects
+#root = Hello()
+#root.test = Test()
+#root.howdy = Howdy()
+
+if __name__ != "__main__":
+
+    # we run cherrypy as wsgi responder so set environment profile as "embedded"
+    cherrypy.config.update({'environment': 'embedded'})
+
+    # create and start WSGI application framework / application by CherryPy
+    application = cherrypy.Application(Hello(), script_name=None, config=None)
+
+else:
+    # start cherrypy locally
+    cherrypy.quickstart( Hello(), config=None)
+
+    
+
+# eof
